@@ -1,0 +1,178 @@
+package main
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+	//"math"
+)
+
+const (
+	//positionMode indicates we use the position
+	positionMode int = 0
+)
+
+var numParams = []int{1000, 4, 4, 2, 2, 3, 3, 4, 4}
+
+func readInput() []int {
+	values := []int{}
+	slice := strings.Split(inputStr, ",")
+	for _, value := range slice {
+		v, err := strconv.Atoi(value)
+		if err != nil {
+			fmt.Printf("Unable to parse value from '%s': %s\n", value, err.Error())
+			return values
+		}
+		values = append(values, v)
+	}
+	return values
+}
+
+func modifyInput(values []int, noun, verb int) {
+	values[1] = noun
+	values[2] = verb
+}
+
+func calculate(values []int, i int, input chan int) (int, int, error) {
+	var accum, op, modeA, modeB, modeC, a, b, c int
+
+	for i < len(values) {
+		if values[i] == 99 {
+			break
+		}
+
+		accum = values[i]
+		op = accum % 100
+		accum = accum / 100
+		modeA = accum % 10
+		accum = accum / 10
+		modeB = accum % 10
+		accum = accum / 10
+		modeC = accum % 10
+
+		a = values[i+1]
+		if modeA == positionMode {
+			a = values[a]
+		}
+
+		if numParams[op] >= 3 {
+			b = values[i+2]
+			if modeB == positionMode {
+				b = values[b]
+			}
+		}
+		if numParams[op] >= 4 {
+			c = values[i+3]
+			if modeC != positionMode {
+				return -1, i, fmt.Errorf("Unaccounted for value mode for modeC: %v", values)
+			}
+		}
+
+		switch op {
+		case 1:
+			values[c] = a + b
+			i += 4
+		case 2:
+			values[c] = a * b
+			i += 4
+		case 3:
+			values[values[i+1]] = <-input
+			fmt.Printf("Input: loc %d is now %d\n", values[i+1], values[values[i+1]])
+			i += 2
+		case 4:
+			fmt.Printf("> At i=%d value=%d\n", i, a)
+			i += 2
+			return a, i, nil
+		case 5:
+			i += 3
+			if a != 0 {
+				i = b
+			}
+		case 6:
+			i += 3
+			if a == 0 {
+				i = b
+			}
+		case 7:
+			if a < b {
+				values[c] = 1
+			} else {
+				values[c] = 0
+			}
+			i += 4
+		case 8:
+			if a == b {
+				values[c] = 1
+			} else {
+				values[c] = 0
+			}
+			i += 4
+		default:
+			return -1, i, fmt.Errorf("Invalid operation %d at loc %d", op, c)
+		}
+
+	}
+	return 0, i, fmt.Errorf("Unexpected end of program")
+}
+
+type computer struct {
+	loc   int
+	state []int
+	input chan int
+}
+
+func (c *computer) update() (int, error) {
+	var value int
+	var err error
+	value, c.loc, err = calculate(c.state, c.loc, c.input)
+	return value, err
+}
+
+func (c *computer) initialize() {
+	c.loc = 0
+	c.state = readInput()
+	c.input = make(chan int)
+}
+
+func main() {
+	var val int
+	var err error
+
+	A := computer{}
+	A.initialize()
+	go func() { A.input <- 5 }()
+	/*
+		phaseSeq := []int{4,3,2,1,0}
+
+
+		B := computer{}
+		B.initialize()
+		C := computer{}
+		C.initialize()
+		D := computer{}
+		D.initialize()
+		E := computer{}
+		E.initialize()
+
+		if val, err = A.update(phaseSeq[0]); if err != nil{
+			fmt.Printf("Error: Phase A update 1: %s", err.Error())
+		}*/
+
+	for val == 0 {
+		fmt.Printf("Starting at loc %d", A.loc)
+		val, err = A.update()
+		if err != nil {
+			fmt.Printf("Have error: %v\n", err.Error())
+		}
+		fmt.Printf("Program ran till valued %d was output\n", val)
+	}
+
+}
+
+//const inputStr = `1,0,0,0,99`
+//const inputStr = `2,3,0,3,99`
+//const inputStr = `2,4,4,5,99,0`
+//const inputStr = `1,1,1,4,99,5,6,0,99`
+
+//const inputStr = `1002,4,3,4,33`
+const inputStr = `3,225,1,225,6,6,1100,1,238,225,104,0,1001,191,50,224,101,-64,224,224,4,224,1002,223,8,223,101,5,224,224,1,224,223,223,2,150,218,224,1001,224,-1537,224,4,224,102,8,223,223,1001,224,2,224,1,223,224,223,1002,154,5,224,101,-35,224,224,4,224,1002,223,8,223,1001,224,5,224,1,224,223,223,1102,76,17,225,1102,21,44,224,1001,224,-924,224,4,224,102,8,223,223,1001,224,4,224,1,224,223,223,101,37,161,224,101,-70,224,224,4,224,1002,223,8,223,101,6,224,224,1,223,224,223,102,46,157,224,1001,224,-1978,224,4,224,102,8,223,223,1001,224,5,224,1,224,223,223,1102,5,29,225,1101,10,7,225,1101,43,38,225,1102,33,46,225,1,80,188,224,1001,224,-73,224,4,224,102,8,223,223,101,4,224,224,1,224,223,223,1101,52,56,225,1101,14,22,225,1101,66,49,224,1001,224,-115,224,4,224,1002,223,8,223,1001,224,7,224,1,224,223,223,1101,25,53,225,4,223,99,0,0,0,677,0,0,0,0,0,0,0,0,0,0,0,1105,0,99999,1105,227,247,1105,1,99999,1005,227,99999,1005,0,256,1105,1,99999,1106,227,99999,1106,0,265,1105,1,99999,1006,0,99999,1006,227,274,1105,1,99999,1105,1,280,1105,1,99999,1,225,225,225,1101,294,0,0,105,1,0,1105,1,99999,1106,0,300,1105,1,99999,1,225,225,225,1101,314,0,0,106,0,0,1105,1,99999,108,226,226,224,1002,223,2,223,1005,224,329,101,1,223,223,108,677,677,224,1002,223,2,223,1006,224,344,1001,223,1,223,8,677,677,224,102,2,223,223,1006,224,359,101,1,223,223,7,226,677,224,102,2,223,223,1005,224,374,101,1,223,223,107,226,226,224,102,2,223,223,1006,224,389,101,1,223,223,7,677,226,224,1002,223,2,223,1006,224,404,1001,223,1,223,1107,677,226,224,1002,223,2,223,1006,224,419,1001,223,1,223,1007,226,226,224,102,2,223,223,1005,224,434,101,1,223,223,1008,226,677,224,102,2,223,223,1005,224,449,1001,223,1,223,1007,677,677,224,1002,223,2,223,1006,224,464,1001,223,1,223,1008,226,226,224,102,2,223,223,1006,224,479,101,1,223,223,1007,226,677,224,1002,223,2,223,1005,224,494,1001,223,1,223,108,226,677,224,1002,223,2,223,1006,224,509,101,1,223,223,8,226,677,224,102,2,223,223,1005,224,524,1001,223,1,223,107,677,677,224,1002,223,2,223,1005,224,539,101,1,223,223,107,226,677,224,1002,223,2,223,1006,224,554,101,1,223,223,1107,226,677,224,1002,223,2,223,1006,224,569,1001,223,1,223,1108,677,226,224,102,2,223,223,1005,224,584,1001,223,1,223,1008,677,677,224,102,2,223,223,1005,224,599,1001,223,1,223,1107,677,677,224,102,2,223,223,1006,224,614,101,1,223,223,7,226,226,224,102,2,223,223,1005,224,629,1001,223,1,223,1108,677,677,224,102,2,223,223,1006,224,644,1001,223,1,223,8,677,226,224,1002,223,2,223,1005,224,659,101,1,223,223,1108,226,677,224,102,2,223,223,1005,224,674,101,1,223,223,4,223,99,226`
