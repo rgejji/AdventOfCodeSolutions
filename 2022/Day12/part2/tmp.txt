@@ -1,0 +1,4 @@
+Hello, world!
+Found start at (20,0)
+Found goal at (20,145)
+Path took 517 steps
